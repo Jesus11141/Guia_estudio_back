@@ -1,0 +1,172 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  STUDENT
+}
+
+model Institution {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(100)
+  logoUrl   String?  @map("logo_url") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  users     User[]
+  books     Book[]
+
+  @@map("institutions")
+}
+
+model User {
+  id            String       @id @default(uuid()) @db.Uuid
+  name          String?      @db.VarChar(100)
+  email         String       @unique @db.VarChar(100)
+  password      String       @db.VarChar(255)
+  role          Role         @default(STUDENT)
+  avatar        String?      @db.VarChar(50)
+  stars         Int          @default(0)
+  hasGames      Boolean      @default(true) @map("has_games")
+  unlockedAvatars String[]   @default([]) @map("unlocked_avatars")
+  institutionId String?      @map("institution_id") @db.Uuid
+  gradeId       String?      @map("grade_id") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  institution   Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  grade         Grade?       @relation(fields: [gradeId], references: [id], onDelete: SetNull)
+  scores        Score[]
+  rewardClaims  RewardClaim[]
+
+  @@index([institutionId])
+  @@index([gradeId])
+  @@map("users")
+}
+
+model Grade {
+  id             String    @id @default(uuid()) @db.Uuid
+  name           String    @unique @db.VarChar(50)
+  educationLevel String    @map("education_level") @db.VarChar(50)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  subjects       Subject[]
+  users          User[]
+
+  @@map("grades")
+}
+
+model Subject {
+  id        String   @id @default(uuid()) @db.Uuid
+  gradeId   String   @map("grade_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  grade     Grade    @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+
+  @@index([gradeId])
+  @@map("subjects")
+}
+
+model Lesson {
+  id         String     @id @default(uuid()) @db.Uuid
+  subjectId  String     @map("subject_id") @db.Uuid
+  title      String     @db.VarChar(200)
+  content    String?    @db.Text
+  orderIndex Int        @map("order_index")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+  subject    Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  questions  Question[]
+  scores     Score[]
+
+  @@index([subjectId])
+  @@map("lessons")
+}
+
+model Question {
+  id            String   @id @default(uuid()) @db.Uuid
+  lessonId      String?  @map("lesson_id") @db.Uuid
+  type          String   @default("MULTIPLE_CHOICE") @db.VarChar(50)
+  metadata      Json?
+  questionText  String   @map("question_text") @db.Text
+  optionA       String   @map("option_a") @db.VarChar(255)
+  optionB       String   @map("option_b") @db.VarChar(255)
+  optionC       String   @map("option_c") @db.VarChar(255)
+  optionD       String   @map("option_d") @db.VarChar(255)
+  correctOption String   @map("correct_option") @db.Char(1)
+  explanation   String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lesson        Lesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+  @@map("questions")
+}
+model Book {
+  id            String       @id @default(uuid()) @db.Uuid
+  title         String
+  author        String
+  description   String?
+  fileUrl       String
+  category      String?      @default("General")
+  institutionId String?      @db.Uuid
+  institution   Institution? @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Score {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  lessonId       String   @map("lesson_id") @db.Uuid
+  score          Int
+  totalQuestions Int      @map("total_questions")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@map("scores")
+}
+
+model Reward {
+  id            String       @id @default(uuid()) @db.Uuid
+  name          String       @db.VarChar(100)
+  cost          Int
+  imageUrl      String?      @map("image_url") @db.VarChar(255)
+  institutionId String?      @map("institution_id") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  
+  claims        RewardClaim[]
+
+  @@map("rewards")
+}
+
+model RewardClaim {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  rewardId  String   @map("reward_id") @db.Uuid
+  status    String   @default("PENDING") @db.VarChar(20) // PENDING, DELIVERED
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward    Reward   @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([rewardId])
+  @@map("reward_claims")
+}

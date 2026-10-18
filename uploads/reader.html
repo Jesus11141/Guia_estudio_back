@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+  <title>Lector de Libros Digital</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  </script>
+
+  <style>
+    :root {
+      --book-cover: #029dbb;
+      --paper-cream: #fbf9f4;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+      background: radial-gradient(circle at 50% 30%, #132a3d 0%, #08141e 100%);
+    }
+    .book-font { font-family: 'EB Garamond', Georgia, serif; }
+    
+    /* Scrollbar styling for zoom viewport */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(11, 28, 40, 0.6);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(6, 182, 212, 0.4);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(6, 182, 212, 0.7);
+    }
+
+    .book-container {
+      position: relative;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.8), 0 10px 25px -5px rgba(0,0,0,0.6);
+      transition: transform 0.25s cubic-bezier(0.2, 0, 0.1, 1), box-shadow 0.3s ease;
+      transform-origin: center center;
+    }
+    
+    .book-cover-spine {
+      background: linear-gradient(90deg, #00778c 0%, #00acc1 50%, #0097a7 100%);
+      box-shadow: inset 2px 0 5px rgba(255,255,255,0.2), inset -2px 0 5px rgba(0,0,0,0.3);
+    }
+    .pages-edge-left {
+      background: repeating-linear-gradient(to right, #e4ded2, #e4ded2 2px, #f5efe6 3px, #ded7ca 4px);
+      box-shadow: inset -2px 0 6px rgba(0,0,0,0.25);
+    }
+    .pages-edge-right {
+      background: repeating-linear-gradient(to left, #e4ded2, #e4ded2 2px, #f5efe6 3px, #ded7ca 4px);
+      box-shadow: inset 2px 0 6px rgba(0,0,0,0.25);
+    }
+    .spine-gutter {
+      background: linear-gradient(to right, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.18) 15%, rgba(0,0,0,0.05) 40%, rgba(255,255,255,0.1) 50%, rgba(0,0,0,0.05) 60%, rgba(0,0,0,0.18) 85%, rgba(0,0,0,0.35) 100%);
+    }
+    
+    .page-sheet {
+      transform-style: preserve-3d;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    }
+    .page-enter-left { animation: pageTurnLeft 0.35s ease-out forwards; }
+    .page-enter-right { animation: pageTurnRight 0.35s ease-out forwards; }
+    @keyframes pageTurnLeft { 0% { opacity: 0.7; transform: rotateY(10deg); } 100% { opacity: 1; transform: rotateY(0deg); } }
+    @keyframes pageTurnRight { 0% { opacity: 0.7; transform: rotateY(-10deg); } 100% { opacity: 1; transform: rotateY(0deg); } }
+    
+    input[type="range"] { -webkit-appearance: none; height: 4px; border-radius: 9999px; background: #cbd5e1; outline: none; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #0284c7; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    
+    canvas { 
+      max-width: 100%; 
+      max-height: 100%; 
+      object-fit: contain; 
+      mix-blend-mode: multiply;
+      filter: contrast(1.02);
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Grab to Pan */
+    .grab-cursor { cursor: grab; }
+    .grabbing-cursor { cursor: grabbing !important; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col items-center justify-between p-2 sm:p-3 overflow-hidden select-none">
+
+  <!-- TOP BAR / TOOLBAR -->
+  <header class="w-full max-w-7xl flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-slate-900/80 backdrop-blur border border-cyan-800/40 rounded-xl text-cyan-200 shadow-lg z-50">
+    
+    <!-- Title & Brand -->
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-lg bg-cyan-600/30 flex items-center justify-center border border-cyan-400/50 text-cyan-300 shadow">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-wide text-white leading-tight">Biblioteca Virtual</h1>
+        <p class="text-[11px] text-cyan-300/80 hidden sm:block">Lector interactivo con zoom y audio</p>
+      </div>
+    </div>
+
+    <!-- ZOOM CONTROLS -->
+    <div class="flex items-center space-x-1 sm:space-x-2 bg-slate-950/70 border border-cyan-700/50 rounded-lg p-1 shadow-inner">
+      <!-- Zoom Out -->
+      <button id="btn-zoom-out" title="Alejar (Zoom -)" class="p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"></path></svg>
+      </button>
+
+      <!-- Zoom Level Badge (Click to reset) -->
+      <button id="btn-zoom-reset" title="Restablecer Zoom (100%)" class="px-2 py-0.5 text-xs font-mono font-bold text-cyan-200 hover:text-white bg-cyan-950/60 hover:bg-cyan-800/40 border border-cyan-800/40 rounded transition">
+        <span id="zoom-text">100%</span>
+      </button>
+
+      <!-- Zoom In -->
+      <button id="btn-zoom-in" title="Acercar (Zoom +)" class="p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+      </button>
+
+      <!-- Fit to Width / Screen -->
+      <button id="btn-zoom-fit" title="Ajustar a pantalla" class="hidden sm:inline-flex p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition text-xs font-medium items-center space-x-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <span class="text-[10px]">Ajustar</span>
+      </button>
+    </div>
+
+    <!-- VIEW MODES & FULLSCREEN -->
+    <div class="flex items-center space-x-1.5 text-xs">
+      <!-- 1 Page / 2 Pages Toggle -->
+      <button id="btn-toggle-pages" title="Cambiar modo de vista" class="px-2.5 py-1.5 bg-slate-950/60 hover:bg-cyan-900/50 border border-cyan-700/40 text-cyan-200 hover:text-white rounded-lg transition flex items-center space-x-1.5 font-medium">
+        <span id="page-mode-icon">📖</span>
+        <span id="page-mode-label" class="hidden sm:inline">2 Páginas</span>
+      </button>
+
+      <!-- Fullscreen -->
+      <button id="btn-fullscreen" title="Pantalla completa" class="p-1.5 bg-slate-950/60 hover:bg-cyan-900/50 border border-cyan-700/40 text-cyan-200 hover:text-white rounded-lg transition">
+        <svg id="fullscreen-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- VIEWPORT SCROLLABLE CONTAINER FOR ZOOM -->
+  <main id="zoom-viewport" class="flex-1 w-full max-w-7xl my-2 flex items-center justify-center overflow-auto custom-scrollbar grab-cursor relative">
+    
+    <div id="book-transform-wrapper" class="transition-transform duration-200 ease-out origin-center flex justify-center items-center">
+      
+      <!-- BOOK CONTAINER -->
+      <div id="main-book-container" class="book-container bg-[#00a6c0] p-[5px] sm:p-[7px] md:p-[9px] rounded-lg shadow-2xl relative flex max-w-[1050px]">
+        <div id="book-spine" class="absolute -left-1.5 top-0 bottom-0 w-3 rounded-l-md book-cover-spine pointer-events-none"></div>
+
+        <div class="w-full bg-[#fbf9f4] rounded-md overflow-hidden relative flex flex-col md:flex-row shadow-inner min-h-[500px] sm:min-h-[580px] lg:min-h-[640px]">
+          <div id="edge-left" class="hidden md:block absolute left-0 top-0 bottom-0 w-4 pages-edge-left z-20 pointer-events-none border-r border-stone-300/60"></div>
+          <div id="edge-right" class="hidden md:block absolute right-0 top-0 bottom-0 w-4 pages-edge-right z-20 pointer-events-none border-l border-stone-300/60"></div>
+          <div id="spine-center" class="hidden md:block absolute left-1/2 top-0 bottom-0 -ml-8 w-16 spine-gutter z-30 pointer-events-none"></div>
+
+          <!-- LEFT PAGE -->
+          <section id="page-left" class="page-sheet w-full md:w-1/2 flex flex-col justify-between p-4 sm:p-6 md:pl-10 md:pr-8 relative bg-[#fbf9f4]">
+            <div class="flex items-start justify-between border-b border-stone-200/60 pb-2 h-[34px]">
+               <span class="text-xs text-stone-500 font-serif font-semibold" id="left-page-num"></span>
+               <span class="text-[11px] text-stone-400 font-serif italic hidden sm:inline">Página izquierda</span>
+            </div>
+            
+            <div class="flex-1 flex items-center justify-center py-2 relative overflow-hidden min-h-[420px]">
+               <canvas id="pdf-canvas-left"></canvas>
+               <div id="left-loading" class="absolute inset-0 flex items-center justify-center bg-[#fbf9f4] bg-opacity-80">
+                  <span class="animate-pulse text-stone-400 text-xs tracking-widest uppercase">Cargando página...</span>
+               </div>
+            </div>
+
+            <div class="pt-2 border-t border-stone-200/60 flex items-center justify-between text-xs text-stone-400 h-[34px]">
+              <span class="font-serif text-[11px]">Guía de Estudio</span>
+            </div>
+            
+            <!-- Left Page Click for Prev -->
+            <button id="prev-btn" title="Página anterior (←)" class="absolute left-0 top-10 bottom-10 w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-w-resize transition z-30"></button>
+          </section>
+
+          <!-- RIGHT PAGE -->
+          <section id="page-right" class="page-sheet w-full md:w-1/2 flex flex-col justify-between p-4 sm:p-6 md:pr-10 md:pl-8 relative bg-[#fbf9f4] border-t md:border-t-0 md:border-l border-stone-200/80">
+            <div class="flex items-start justify-between border-b border-stone-200/60 pb-2 h-[34px]">
+               <span class="text-[11px] text-stone-400 font-serif italic hidden sm:inline">Página derecha</span>
+               <span class="text-xs text-stone-500 font-serif font-semibold" id="right-page-num"></span>
+            </div>
+            
+            <div class="flex-1 flex items-center justify-center py-2 relative overflow-hidden min-h-[420px]">
+               <canvas id="pdf-canvas-right"></canvas>
+               <div id="right-loading" class="absolute inset-0 flex items-center justify-center bg-[#fbf9f4] bg-opacity-80">
+                  <span class="animate-pulse text-stone-400 text-xs tracking-widest uppercase">Cargando página...</span>
+               </div>
+            </div>
+
+            <div class="pt-2 border-t border-stone-200/60 flex items-center justify-end text-xs text-stone-400 h-[34px]">
+              <span class="font-serif text-[11px]">Lectura Digital</span>
+            </div>
+
+            <!-- Right Page Click for Next -->
+            <button id="next-btn" title="Página siguiente (→)" class="absolute right-0 top-10 bottom-10 w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-e-resize transition z-30"></button>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- BOTTOM BAR / NAVIGATION CONTROLS -->
+  <footer class="w-full max-w-3xl flex items-center justify-between gap-3 px-4 py-2 bg-slate-900/85 backdrop-blur border border-cyan-800/40 rounded-xl text-cyan-200 shadow-xl z-50">
+    <!-- Prev Button -->
+    <button id="btn-nav-prev" title="Página anterior" class="flex items-center space-x-1 px-3 py-1.5 bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-700/50 rounded-lg text-cyan-200 hover:text-white transition active:scale-95 text-xs font-semibold">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+      <span class="hidden sm:inline">Anterior</span>
+    </button>
+
+    <!-- Slider & Counter -->
+    <div class="flex-1 flex flex-col items-center max-w-md mx-2">
+      <input type="range" id="progress-slider" min="1" max="1" value="1" class="w-full">
+      <div class="flex items-center justify-between w-full mt-1 px-1">
+        <span class="text-[11px] text-cyan-400/80 font-mono">Pág. 1</span>
+        <span id="page-counter-text" class="text-xs font-bold text-white tracking-wide">1 de 1</span>
+        <span id="page-total-label" class="text-[11px] text-cyan-400/80 font-mono">Fin</span>
+      </div>
+    </div>
+
+    <!-- Next Button -->
+    <button id="btn-nav-next" title="Página siguiente" class="flex items-center space-x-1 px-3 py-1.5 bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-700/50 rounded-lg text-cyan-200 hover:text-white transition active:scale-95 text-xs font-semibold">
+      <span class="hidden sm:inline">Siguiente</span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+    </button>
+  </footer>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const pdfUrl = urlParams.get('file');
+
+    let pdfDoc = null;
+    let pageNum = 1;
+    let totalPages = 0;
+    let renderTasks = [];
+
+    // Zoom state
+    let currentZoom = 1.0;
+    const MIN_ZOOM = 0.5;
+    const MAX_ZOOM = 3.0;
+    const ZOOM_STEP = 0.2;
+
+    // View mode: true = 2 pages, false = 1 page
+    let isDoublePageMode = window.innerWidth >= 768;
+
+    const canvasLeft = document.getElementById('pdf-canvas-left');
+    const ctxLeft = canvasLeft.getContext('2d');
+    const canvasRight = document.getElementById('pdf-canvas-right');
+    const ctxRight = canvasRight.getContext('2d');
+    
+    const slider = document.getElementById('progress-slider');
+    const leftLoading = document.getElementById('left-loading');
+    const rightLoading = document.getElementById('right-loading');
+    const pageLeftEl = document.getElementById('page-left');
+    const pageRightEl = document.getElementById('page-right');
+    const bookTransformWrapper = document.getElementById('book-transform-wrapper');
+    const zoomViewport = document.getElementById('zoom-viewport');
+    const zoomText = document.getElementById('zoom-text');
+    const mainBookContainer = document.getElementById('main-book-container');
+
+    const spineCenter = document.getElementById('spine-center');
+    const edgeRight = document.getElementById('edge-right');
+    const pageModeIcon = document.getElementById('page-mode-icon');
+    const pageModeLabel = document.getElementById('page-mode-label');
+
+    // Apply Page Mode (1 page vs 2 pages)
+    function applyPageMode() {
+      if (isDoublePageMode) {
+        pageRightEl.classList.remove('hidden');
+        spineCenter.classList.remove('hidden');
+        edgeRight.classList.remove('hidden');
+        pageLeftEl.classList.remove('md:w-full');
+        pageLeftEl.classList.add('md:w-1/2');
+        mainBookContainer.classList.remove('max-w-[650px]');
+        mainBookContainer.classList.add('max-w-[1050px]');
+        pageModeIcon.textContent = '📖';
+        pageModeLabel.textContent = '2 Páginas';
+      } else {
+        pageRightEl.classList.add('hidden');
+        spineCenter.classList.add('hidden');
+        edgeRight.classList.add('hidden');
+        pageLeftEl.classList.remove('md:w-1/2');
+        pageLeftEl.classList.add('md:w-full');
+        mainBookContainer.classList.remove('max-w-[1050px]');
+        mainBookContainer.classList.add('max-w-[650px]');
+        pageModeIcon.textContent = '📄';
+        pageModeLabel.textContent = '1 Página';
+      }
+      queueRenderPage();
+    }
+
+    // ZOOM FUNCTIONS
+    function setZoom(newZoom) {
+      currentZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(newZoom * 100) / 100));
+      zoomText.textContent = `${Math.round(currentZoom * 100)}%`;
+      bookTransformWrapper.style.transform = `scale(${currentZoom})`;
+      
+      // Update cursor for panning
+      if (currentZoom > 1.05) {
+        zoomViewport.classList.add('grab-cursor');
+      } else {
+        zoomViewport.classList.remove('grab-cursor');
+      }
+
+      // High-res re-render at debounced time for crisp letters
+      debouncedRerender();
+    }
+
+    let rerenderTimeout = null;
+    function debouncedRerender() {
+      clearTimeout(rerenderTimeout);
+      rerenderTimeout = setTimeout(() => {
+        queueRenderPage(false);
+      }, 300);
+    }
+
+    document.getElementById('btn-zoom-in').addEventListener('click', () => setZoom(currentZoom + ZOOM_STEP));
+    document.getElementById('btn-zoom-out').addEventListener('click', () => setZoom(currentZoom - ZOOM_STEP));
+    document.getElementById('btn-zoom-reset').addEventListener('click', () => setZoom(1.0));
+    document.getElementById('btn-zoom-fit').addEventListener('click', () => {
+      // Auto-fit zoom to current screen height
+      const availableHeight = zoomViewport.clientHeight - 40;
+      const baseHeight = 600;
+      const fitZoom = Math.max(0.6, Math.min(1.8, availableHeight / baseHeight));
+      setZoom(fitZoom);
+    });
+
+    // Ctrl + Mouse Wheel Zoom
+    zoomViewport.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+        setZoom(currentZoom + delta);
+      }
+    }, { passive: false });
+
+    // Drag to Pan when zoomed
+    let isDragging = false;
+    let startX, startY, scrollLeft, scrollTop;
+
+    zoomViewport.addEventListener('mousedown', (e) => {
+      if (currentZoom <= 1.05) return;
+      isDragging = true;
+      zoomViewport.classList.add('grabbing-cursor');
+      startX = e.pageX - zoomViewport.offsetLeft;
+      startY = e.pageY - zoomViewport.offsetTop;
+      scrollLeft = zoomViewport.scrollLeft;
+      scrollTop = zoomViewport.scrollTop;
+    });
+
+    zoomViewport.addEventListener('mouseleave', () => {
+      isDragging = false;
+      zoomViewport.classList.remove('grabbing-cursor');
+    });
+
+    zoomViewport.addEventListener('mouseup', () => {
+      isDragging = false;
+      zoomViewport.classList.remove('grabbing-cursor');
+    });
+
+    zoomViewport.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - zoomViewport.offsetLeft;
+      const y = e.pageY - zoomViewport.offsetTop;
+      const walkX = (x - startX) * 1.5;
+      const walkY = (y - startY) * 1.5;
+      zoomViewport.scrollLeft = scrollLeft - walkX;
+      zoomViewport.scrollTop = scrollTop - walkY;
+    });
+
+    // Touch Pinch to Zoom on mobile
+    let initialTouchDist = null;
+    let initialZoom = 1.0;
+    zoomViewport.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        initialTouchDist = Math.hypot(
+          e.touches[0].pageX - e.touches[1].pageX,
+          e.touches[0].pageY - e.touches[1].pageY
+        );
+        initialZoom = currentZoom;
+      }
+    });
+
+    zoomViewport.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2 && initialTouchDist) {
+        e.preventDefault();
+        const currentDist = Math.hypot(
+          e.touches[0].pageX - e.touches[1].pageX,
+          e.touches[0].pageY - e.touches[1].pageY
+        );
+        const factor = currentDist / initialTouchDist;
+        setZoom(initialZoom * factor);
+      }
+    }, { passive: false });
+
+    zoomViewport.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) {
+        initialTouchDist = null;
+      }
+    });
+
+    // Toggle 1 page / 2 pages
+    document.getElementById('btn-toggle-pages').addEventListener('click', () => {
+      isDoublePageMode = !isDoublePageMode;
+      applyPageMode();
+    });
+
+    function animateFlip() {
+      pageLeftEl.classList.remove('page-enter-left');
+      pageRightEl.classList.remove('page-enter-right');
+      void pageLeftEl.offsetWidth;
+      pageLeftEl.classList.add('page-enter-left');
+      pageRightEl.classList.add('page-enter-right');
+    }
+
+    async function renderPage(num, canvas, ctx, loadingEl, pageNumTextId) {
+      if (!pdfDoc) return;
+      if (num > totalPages) {
+         ctx.clearRect(0, 0, canvas.width, canvas.height);
+         document.getElementById(pageNumTextId).textContent = '';
+         loadingEl.classList.add('hidden');
+         return;
+      }
+      
+      loadingEl.classList.remove('hidden');
+      document.getElementById(pageNumTextId).textContent = `Pág. ${num}`;
+      
+      try {
+        const page = await pdfDoc.getPage(num);
+        // High-DPI crisp scale based on zoom and devicePixelRatio
+        const dpr = window.devicePixelRatio || 1;
+        const renderScale = 1.6 * currentZoom * dpr;
+        const viewport = page.getViewport({ scale: renderScale });
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        canvas.style.width = '100%';
+        canvas.style.height = 'auto';
+        
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+        
+        const renderTask = page.render(renderContext);
+        renderTasks.push(renderTask);
+        await renderTask.promise;
+      } catch (e) {
+        if (e.name !== 'RenderingCancelledException') {
+            console.error(e);
+        }
+      } finally {
+        loadingEl.classList.add('hidden');
+      }
+    }
+
+    async function queueRenderPage(animate = true) {
+      for (const task of renderTasks) {
+          task.cancel();
+      }
+      renderTasks = [];
+
+      if (animate) animateFlip();
+      slider.value = pageNum;
+
+      if (isDoublePageMode) {
+        const rightPageNum = Math.min(pageNum + 1, totalPages);
+        document.getElementById('page-counter-text').textContent = `${pageNum} - ${rightPageNum} de ${totalPages}`;
+        await Promise.all([
+          renderPage(pageNum, canvasLeft, ctxLeft, leftLoading, 'left-page-num'),
+          renderPage(pageNum + 1, canvasRight, ctxRight, rightLoading, 'right-page-num')
+        ]);
+      } else {
+        document.getElementById('page-counter-text').textContent = `${pageNum} de ${totalPages}`;
+        await renderPage(pageNum, canvasLeft, ctxLeft, leftLoading, 'left-page-num');
+      }
+    }
+
+    function onPrevPage() {
+      const step = isDoublePageMode ? 2 : 1;
+      if (pageNum <= 1) return;
+      pageNum -= step;
+      if (pageNum < 1) pageNum = 1;
+      queueRenderPage();
+    }
+
+    function onNextPage() {
+      const step = isDoublePageMode ? 2 : 1;
+      if (pageNum >= totalPages) return;
+      pageNum += step;
+      if (pageNum > totalPages) pageNum = totalPages;
+      queueRenderPage();
+    }
+
+    // Navigation button bindings
+    document.getElementById('prev-btn').addEventListener('click', onPrevPage);
+    document.getElementById('next-btn').addEventListener('click', onNextPage);
+    document.getElementById('btn-nav-prev').addEventListener('click', onPrevPage);
+    document.getElementById('btn-nav-next').addEventListener('click', onNextPage);
+    
+    slider.addEventListener('change', (e) => {
+      let val = parseInt(e.target.value);
+      if (isDoublePageMode && val % 2 === 0) val -= 1;
+      pageNum = Math.max(1, Math.min(totalPages, val));
+      queueRenderPage();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') onNextPage();
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') onPrevPage();
+      if (e.key === '+' || e.key === '=') setZoom(currentZoom + ZOOM_STEP);
+      if (e.key === '-' || e.key === '_') setZoom(currentZoom - ZOOM_STEP);
+      if (e.key === '0') setZoom(1.0);
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+    });
+
+    if (pdfUrl) {
+       pdfjsLib.getDocument(pdfUrl).promise.then((doc) => {
+          pdfDoc = doc;
+          totalPages = doc.numPages;
+          slider.max = totalPages;
+          document.getElementById('page-total-label').textContent = `Pág. ${totalPages}`;
+          applyPageMode();
+       }).catch(err => {
+          leftLoading.innerHTML = '<span class="text-red-500 font-bold p-4 text-center">Error al cargar el archivo PDF.<br><span class="text-xs text-stone-500">Verifica la conexión o el formato del archivo.</span></span>';
+          rightLoading.innerHTML = '';
+       });
+    } else {
+       leftLoading.innerHTML = '<span class="text-stone-500 text-center px-4">No se proporcionó archivo PDF (falta parámetro ?file=)</span>';
+       rightLoading.innerHTML = '';
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+    document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+
+    // Initial resize check for mobile responsiveness
+    window.addEventListener('resize', () => {
+      const shouldBeDouble = window.innerWidth >= 768;
+      if (shouldBeDouble !== isDoublePageMode) {
+        isDoublePageMode = shouldBeDouble;
+        applyPageMode();
+      }
+    });
+  </script>
+</body>
+</html>
