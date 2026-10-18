@@ -28,6 +28,7 @@
       font-family: 'Inter', sans-serif;
       user-select: none;
       background: radial-gradient(circle at 50% 30%, #132a3d 0%, #08141e 100%);
+      touch-action: none; /* Allows our custom gesture controller to handle touch smoothly */
     }
 
     .book-font { font-family: 'EB Garamond', Georgia, serif; }
@@ -80,7 +81,7 @@
       margin: 0 auto;
     }
 
-    /* Grab & Grabbing Cursors for Camera Pan */
+    /* Grab & Grabbing Cursors */
     .grab-cursor { cursor: grab !important; }
     .grabbing-cursor { cursor: grabbing !important; }
   </style>
@@ -121,7 +122,7 @@
       </button>
 
       <!-- Center Camera Button -->
-      <button id="btn-zoom-center" title="Centrar cámara" class="p-1 sm:p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition text-xs font-medium flex items-center space-x-1">
+      <button id="btn-zoom-center" title="Centrar lectura" class="p-1 sm:p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition text-xs font-medium flex items-center space-x-1">
         <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v2m0 12v2m8-8h-2M6 12H4m12 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
         <span class="hidden md:inline text-[10px]">Centrar</span>
       </button>
@@ -150,14 +151,14 @@
     </div>
   </header>
 
-  <!-- VIEWPORT CONTAINER (Adapts dynamically to mobile and desktop) -->
-  <main id="zoom-viewport" class="flex-1 w-full max-w-7xl my-1 flex items-center justify-center overflow-hidden relative cursor-default min-h-0">
+  <!-- VIEWPORT CONTAINER -->
+  <main id="zoom-viewport" class="flex-1 w-full max-w-7xl my-1 flex items-center justify-center overflow-hidden relative cursor-grab min-h-0">
     
     <!-- Camera Transform Wrapper (Translate Pan + Scale Zoom) -->
     <div id="book-transform-wrapper" class="origin-center flex justify-center items-center select-none will-change-transform w-full h-full min-h-0">
       
       <!-- MAIN BOOK CONTAINER -->
-      <div id="main-book-container" class="book-container bg-[#00a6c0] p-[3px] sm:p-[6px] md:p-[8px] rounded-lg shadow-2xl relative flex h-full max-h-full min-h-0 transition-all duration-300">
+      <div id="main-book-container" class="book-container bg-[#00a6c0] p-[3px] sm:p-[6px] md:p-[8px] rounded-lg shadow-2xl relative flex h-full max-h-full min-h-0">
         <div id="book-spine" class="absolute -left-1.5 top-0 bottom-0 w-3 rounded-l-md book-cover-spine pointer-events-none"></div>
 
         <div id="book-inner-pages" class="w-full h-full min-h-0 bg-[#fbf9f4] rounded-md overflow-hidden relative flex flex-row shadow-inner">
@@ -184,7 +185,7 @@
             </div>
             
             <!-- Left Page Click for Prev -->
-            <button id="prev-btn" title="Página anterior (←)" class="absolute left-0 top-6 bottom-6 w-12 sm:w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-w-resize transition z-30"></button>
+            <button id="prev-btn" title="Página anterior (←)" class="absolute left-0 top-6 bottom-6 w-10 sm:w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-w-resize transition z-30"></button>
           </section>
 
           <!-- RIGHT PAGE -->
@@ -206,17 +207,11 @@
             </div>
 
             <!-- Right Page Click for Next -->
-            <button id="next-btn" title="Página siguiente (→)" class="absolute right-0 top-6 bottom-6 w-12 sm:w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-e-resize transition z-30"></button>
+            <button id="next-btn" title="Página siguiente (→)" class="absolute right-0 top-6 bottom-6 w-10 sm:w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-e-resize transition z-30"></button>
           </section>
 
         </div>
       </div>
-    </div>
-
-    <!-- Floating Pan Helper Indicator -->
-    <div id="pan-indicator" class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/90 text-cyan-200 border border-cyan-700/50 text-[10px] sm:text-[11px] font-medium px-3 py-1 rounded-full shadow-xl pointer-events-none transition-opacity duration-300 opacity-0 z-40 flex items-center space-x-1.5 backdrop-blur">
-      <span>🖐️</span>
-      <span>Arrastra para mover o gira la rueda del ratón</span>
     </div>
   </main>
 
@@ -263,7 +258,6 @@
     const ZOOM_STEP = 0.25;
 
     // View mode: true = 2 pages, false = 1 page
-    // On mobile (< 768px), default to 1 page for optimal readability!
     let isDoublePageMode = window.innerWidth >= 768;
 
     const canvasLeft = document.getElementById('pdf-canvas-left');
@@ -280,7 +274,6 @@
     const zoomViewport = document.getElementById('zoom-viewport');
     const zoomText = document.getElementById('zoom-text');
     const mainBookContainer = document.getElementById('main-book-container');
-    const panIndicator = document.getElementById('pan-indicator');
 
     const spineCenter = document.getElementById('spine-center');
     const edgeRight = document.getElementById('edge-right');
@@ -319,9 +312,19 @@
     function clampPan() {
       const containerW = mainBookContainer.offsetWidth || 500;
       const containerH = mainBookContainer.offsetHeight || 500;
-      
-      const maxPanX = Math.max(0, (containerW * currentZoom - window.innerWidth * 0.4) / 1.5) + 300;
-      const maxPanY = Math.max(0, (containerH * currentZoom - window.innerHeight * 0.4) / 1.5) + 300;
+      const viewportW = zoomViewport.clientWidth || window.innerWidth;
+      const viewportH = zoomViewport.clientHeight || window.innerHeight;
+
+      // Allow full scrolling up and down regardless of zoom level
+      const scaledH = containerH * currentZoom;
+      const extraH = Math.max(0, scaledH - viewportH);
+      const maxPanY = (extraH / 2) + (viewportH * 0.6) + 150;
+
+      const scaledW = containerW * currentZoom;
+      const extraW = Math.max(0, scaledW - viewportW);
+      const maxPanX = currentZoom > 1.08 
+          ? (extraW / 2) + (viewportW * 0.35) 
+          : 80;
 
       panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
       panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
@@ -334,14 +337,6 @@
         bookTransformWrapper.style.transition = 'none';
       }
       bookTransformWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
-      
-      if (currentZoom > 1.05) {
-        zoomViewport.classList.add('grab-cursor');
-        panIndicator.classList.remove('opacity-0');
-      } else {
-        zoomViewport.classList.remove('grab-cursor', 'grabbing-cursor');
-        panIndicator.classList.add('opacity-0');
-      }
     }
 
     // ZOOM FUNCTIONS
@@ -349,7 +344,7 @@
       currentZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(newZoom * 100) / 100));
       zoomText.textContent = `${Math.round(currentZoom * 100)}%`;
 
-      if (currentZoom <= 1.02 || resetPan) {
+      if (resetPan) {
         panX = 0;
         panY = 0;
       } else {
@@ -381,7 +376,7 @@
       setZoom(1.0, true);
     });
 
-    // MOUSE DRAG / PAN CAMERA
+    // MOUSE DRAG / PAN CAMERA (Active at all times)
     let isDragging = false;
     let startMouseX = 0;
     let startMouseY = 0;
@@ -391,17 +386,15 @@
 
     zoomViewport.addEventListener('mousedown', (e) => {
       if (e.button !== 0 && e.button !== 1) return;
-      if (currentZoom > 1.02 || e.button === 1) {
-        isDragging = true;
-        dragDistance = 0;
-        startMouseX = e.clientX;
-        startMouseY = e.clientY;
-        startPanX = panX;
-        startPanY = panY;
-        zoomViewport.classList.add('grabbing-cursor');
-        zoomViewport.classList.remove('grab-cursor');
-        e.preventDefault();
-      }
+      isDragging = true;
+      dragDistance = 0;
+      startMouseX = e.clientX;
+      startMouseY = e.clientY;
+      startPanX = panX;
+      startPanY = panY;
+      zoomViewport.classList.add('grabbing-cursor');
+      zoomViewport.classList.remove('cursor-grab');
+      e.preventDefault();
     });
 
     window.addEventListener('mousemove', (e) => {
@@ -420,19 +413,17 @@
       if (isDragging) {
         isDragging = false;
         zoomViewport.classList.remove('grabbing-cursor');
-        if (currentZoom > 1.05) {
-          zoomViewport.classList.add('grab-cursor');
-        }
+        zoomViewport.classList.add('cursor-grab');
       }
     });
 
-    // MOUSE WHEEL ZOOM & PAN
+    // MOUSE WHEEL (Always scrolls vertically)
     zoomViewport.addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
         setZoom(currentZoom + delta);
-      } else if (currentZoom > 1.05) {
+      } else {
         e.preventDefault();
         if (e.shiftKey) {
           panX -= e.deltaY * 0.9;
@@ -444,19 +435,21 @@
       }
     }, { passive: false });
 
-    // TOUCH DRAG & PINCH TO ZOOM ON MOBILE
+    // TOUCH SWIPE & DRAG ON MOBILE (ALWAYS ACTIVE!)
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartPanX = 0;
     let touchStartPanY = 0;
+    let touchStartTime = 0;
     let isTouchPanning = false;
     let initialPinchDist = null;
     let initialPinchZoom = 1.0;
 
     zoomViewport.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1 && currentZoom > 1.02) {
+      if (e.touches.length === 1) {
         isTouchPanning = true;
         dragDistance = 0;
+        touchStartTime = Date.now();
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
         touchStartPanX = panX;
@@ -472,15 +465,25 @@
     }, { passive: false });
 
     zoomViewport.addEventListener('touchmove', (e) => {
-      if (isTouchPanning && e.touches.length === 1 && currentZoom > 1.02) {
+      if (isTouchPanning && e.touches.length === 1) {
         e.preventDefault();
         const deltaX = e.touches[0].clientX - touchStartX;
         const deltaY = e.touches[0].clientY - touchStartY;
         dragDistance += Math.hypot(deltaX, deltaY);
-        panX = touchStartPanX + deltaX;
+
+        // Slide finger UP (deltaY < 0) -> panY decreases -> book moves UP!
+        // Slide finger DOWN (deltaY > 0) -> panY increases -> book moves DOWN!
         panY = touchStartPanY + deltaY;
+
+        if (currentZoom > 1.08) {
+          panX = touchStartPanX + deltaX;
+        } else {
+          // Subtle horizontal resistance so page doesn't wobble sideways while scrolling vertically
+          panX = touchStartPanX + (deltaX * 0.25);
+        }
+
         clampPan();
-        applyTransform(false);
+        applyTransform(false); // Instant, smooth 60fps tracking!
       } else if (e.touches.length === 2 && initialPinchDist) {
         e.preventDefault();
         const currentDist = Math.hypot(
@@ -493,8 +496,28 @@
     }, { passive: false });
 
     zoomViewport.addEventListener('touchend', (e) => {
+      if (isTouchPanning && e.touches.length === 0) {
+        const deltaX = (e.changedTouches[0]?.clientX || touchStartX) - touchStartX;
+        const deltaY = (e.changedTouches[0]?.clientY || touchStartY) - touchStartY;
+        const elapsed = Date.now() - touchStartTime;
+
+        // If user made a deliberate horizontal swipe (quick flick left/right) -> turn page!
+        if (currentZoom <= 1.15 && Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4 && elapsed < 400) {
+          if (deltaX < 0) {
+            onNextPage(); // Swiped left -> next page
+          } else {
+            onPrevPage(); // Swiped right -> prev page
+          }
+          panX = 0;
+          applyTransform(true);
+        } else {
+          // Normal drag end: smooth settling
+          clampPan();
+          applyTransform(true);
+        }
+      }
+      isTouchPanning = false;
       if (e.touches.length < 2) initialPinchDist = null;
-      if (e.touches.length === 0) isTouchPanning = false;
     });
 
     // Toggle 1 page / 2 pages
@@ -584,6 +607,10 @@
       if (pageNum <= 1) return;
       pageNum -= step;
       if (pageNum < 1) pageNum = 1;
+      // Reset vertical position so student starts reading from the top of the new page
+      panX = 0;
+      panY = 0;
+      applyTransform(true);
       queueRenderPage();
     }
 
@@ -592,6 +619,10 @@
       if (pageNum >= totalPages) return;
       pageNum += step;
       if (pageNum > totalPages) pageNum = totalPages;
+      // Reset vertical position so student starts reading from the top of the new page
+      panX = 0;
+      panY = 0;
+      applyTransform(true);
       queueRenderPage();
     }
 
@@ -611,12 +642,15 @@
       let val = parseInt(e.target.value);
       if (isDoublePageMode && val % 2 === 0) val -= 1;
       pageNum = Math.max(1, Math.min(totalPages, val));
+      panX = 0;
+      panY = 0;
+      applyTransform(true);
       queueRenderPage();
     });
 
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && currentZoom > 1.05 && !e.shiftKey) {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !e.shiftKey) {
         e.preventDefault();
         const step = 50;
         if (e.key === 'ArrowUp') panY += step;
