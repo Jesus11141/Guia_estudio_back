@@ -25,27 +25,10 @@
     }
     .book-font { font-family: 'EB Garamond', Georgia, serif; }
     
-    /* Scrollbar styling for zoom viewport */
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: rgba(11, 28, 40, 0.6);
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(6, 182, 212, 0.4);
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(6, 182, 212, 0.7);
-    }
-
     .book-container {
       position: relative;
       box-shadow: 0 25px 60px -15px rgba(0,0,0,0.8), 0 10px 25px -5px rgba(0,0,0,0.6);
-      transition: transform 0.25s cubic-bezier(0.2, 0, 0.1, 1), box-shadow 0.3s ease;
+      transition: box-shadow 0.3s ease;
       transform-origin: center center;
     }
     
@@ -87,8 +70,8 @@
       margin: 0 auto;
     }
 
-    /* Grab to Pan */
-    .grab-cursor { cursor: grab; }
+    /* Grab & Grabbing Cursors for Camera Pan */
+    .grab-cursor { cursor: grab !important; }
     .grabbing-cursor { cursor: grabbing !important; }
   </style>
 </head>
@@ -111,7 +94,7 @@
     </div>
 
     <!-- ZOOM CONTROLS -->
-    <div class="flex items-center space-x-1 sm:space-x-2 bg-slate-950/70 border border-cyan-700/50 rounded-lg p-1 shadow-inner">
+    <div class="flex items-center space-x-1 sm:space-x-1.5 bg-slate-950/70 border border-cyan-700/50 rounded-lg p-1 shadow-inner">
       <!-- Zoom Out -->
       <button id="btn-zoom-out" title="Alejar (Zoom -)" class="p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"></path></svg>
@@ -125,6 +108,12 @@
       <!-- Zoom In -->
       <button id="btn-zoom-in" title="Acercar (Zoom +)" class="p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+      </button>
+
+      <!-- Center Camera Button -->
+      <button id="btn-zoom-center" title="Centrar cámara" class="p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition text-xs font-medium flex items-center space-x-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v2m0 12v2m8-8h-2M6 12H4m12 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+        <span class="hidden sm:inline text-[10px]">Centrar</span>
       </button>
 
       <!-- Fit to Width / Screen -->
@@ -151,10 +140,11 @@
     </div>
   </header>
 
-  <!-- VIEWPORT SCROLLABLE CONTAINER FOR ZOOM -->
-  <main id="zoom-viewport" class="flex-1 w-full max-w-7xl my-2 flex items-center justify-center overflow-auto custom-scrollbar grab-cursor relative">
+  <!-- VIEWPORT SCROLLABLE CONTAINER FOR CAMERA PAN -->
+  <main id="zoom-viewport" class="flex-1 w-full max-w-7xl my-2 flex items-center justify-center overflow-hidden relative cursor-default">
     
-    <div id="book-transform-wrapper" class="transition-transform duration-200 ease-out origin-center flex justify-center items-center">
+    <!-- Camera Transform Wrapper (Translate Pan + Scale Zoom) -->
+    <div id="book-transform-wrapper" class="origin-center flex justify-center items-center select-none will-change-transform">
       
       <!-- BOOK CONTAINER -->
       <div id="main-book-container" class="book-container bg-[#00a6c0] p-[5px] sm:p-[7px] md:p-[9px] rounded-lg shadow-2xl relative flex max-w-[1050px]">
@@ -212,6 +202,12 @@
         </div>
       </div>
     </div>
+
+    <!-- Floating Pan Helper Indicator -->
+    <div id="pan-indicator" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/90 text-cyan-200 border border-cyan-700/50 text-[11px] font-medium px-3.5 py-1.5 rounded-full shadow-xl pointer-events-none transition-opacity duration-300 opacity-0 z-40 flex items-center space-x-1.5 backdrop-blur">
+      <span>🖐️</span>
+      <span>Haz clic y arrastra para mover la cámara o gira la rueda del ratón</span>
+    </div>
   </main>
 
   <!-- BOTTOM BAR / NAVIGATION CONTROLS -->
@@ -248,11 +244,13 @@
     let totalPages = 0;
     let renderTasks = [];
 
-    // Zoom state
+    // Zoom & 2D Pan Camera State
     let currentZoom = 1.0;
+    let panX = 0;
+    let panY = 0;
     const MIN_ZOOM = 0.5;
-    const MAX_ZOOM = 3.0;
-    const ZOOM_STEP = 0.2;
+    const MAX_ZOOM = 3.5;
+    const ZOOM_STEP = 0.25;
 
     // View mode: true = 2 pages, false = 1 page
     let isDoublePageMode = window.innerWidth >= 768;
@@ -271,6 +269,7 @@
     const zoomViewport = document.getElementById('zoom-viewport');
     const zoomText = document.getElementById('zoom-text');
     const mainBookContainer = document.getElementById('main-book-container');
+    const panIndicator = document.getElementById('pan-indicator');
 
     const spineCenter = document.getElementById('spine-center');
     const edgeRight = document.getElementById('edge-right');
@@ -303,20 +302,50 @@
       queueRenderPage();
     }
 
-    // ZOOM FUNCTIONS
-    function setZoom(newZoom) {
-      currentZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(newZoom * 100) / 100));
-      zoomText.textContent = `${Math.round(currentZoom * 100)}%`;
-      bookTransformWrapper.style.transform = `scale(${currentZoom})`;
+    // CAMERA TRANSFORM & PAN CLAMPING
+    function clampPan() {
+      const containerW = mainBookContainer.offsetWidth || 1000;
+      const containerH = mainBookContainer.offsetHeight || 600;
       
-      // Update cursor for panning
+      // Calculate how far camera can move based on zoom
+      const maxPanX = Math.max(0, (containerW * currentZoom - window.innerWidth * 0.4) / 1.5) + 300;
+      const maxPanY = Math.max(0, (containerH * currentZoom - window.innerHeight * 0.4) / 1.5) + 300;
+
+      panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+      panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+    }
+
+    function applyTransform(smooth = false) {
+      if (smooth) {
+        bookTransformWrapper.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0.1, 1)';
+      } else {
+        bookTransformWrapper.style.transition = 'none';
+      }
+      bookTransformWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+      
+      // Update cursor and helper badge
       if (currentZoom > 1.05) {
         zoomViewport.classList.add('grab-cursor');
+        panIndicator.classList.remove('opacity-0');
       } else {
-        zoomViewport.classList.remove('grab-cursor');
+        zoomViewport.classList.remove('grab-cursor', 'grabbing-cursor');
+        panIndicator.classList.add('opacity-0');
+      }
+    }
+
+    // ZOOM FUNCTIONS
+    function setZoom(newZoom, resetPan = false) {
+      currentZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(newZoom * 100) / 100));
+      zoomText.textContent = `${Math.round(currentZoom * 100)}%`;
+
+      if (currentZoom <= 1.02 || resetPan) {
+        panX = 0;
+        panY = 0;
+      } else {
+        clampPan();
       }
 
-      // High-res re-render at debounced time for crisp letters
+      applyTransform(true);
       debouncedRerender();
     }
 
@@ -325,93 +354,142 @@
       clearTimeout(rerenderTimeout);
       rerenderTimeout = setTimeout(() => {
         queueRenderPage(false);
-      }, 300);
+      }, 350);
     }
 
     document.getElementById('btn-zoom-in').addEventListener('click', () => setZoom(currentZoom + ZOOM_STEP));
     document.getElementById('btn-zoom-out').addEventListener('click', () => setZoom(currentZoom - ZOOM_STEP));
-    document.getElementById('btn-zoom-reset').addEventListener('click', () => setZoom(1.0));
-    document.getElementById('btn-zoom-fit').addEventListener('click', () => {
-      // Auto-fit zoom to current screen height
-      const availableHeight = zoomViewport.clientHeight - 40;
-      const baseHeight = 600;
-      const fitZoom = Math.max(0.6, Math.min(1.8, availableHeight / baseHeight));
-      setZoom(fitZoom);
+    document.getElementById('btn-zoom-reset').addEventListener('click', () => setZoom(1.0, true));
+    document.getElementById('btn-zoom-center').addEventListener('click', () => {
+      panX = 0;
+      panY = 0;
+      applyTransform(true);
     });
 
-    // Ctrl + Mouse Wheel Zoom
+    document.getElementById('btn-zoom-fit').addEventListener('click', () => {
+      const availableHeight = zoomViewport.clientHeight - 40;
+      const baseHeight = 620;
+      const fitZoom = Math.max(0.6, Math.min(1.8, availableHeight / baseHeight));
+      setZoom(fitZoom, true);
+    });
+
+    // MOUSE DRAG / PAN CAMERA
+    let isDragging = false;
+    let startMouseX = 0;
+    let startMouseY = 0;
+    let startPanX = 0;
+    let startPanY = 0;
+    let dragDistance = 0;
+
+    zoomViewport.addEventListener('mousedown', (e) => {
+      // Left button (0) or Middle button (1)
+      if (e.button !== 0 && e.button !== 1) return;
+      if (currentZoom > 1.02 || e.button === 1) {
+        isDragging = true;
+        dragDistance = 0;
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        startPanX = panX;
+        startPanY = panY;
+        zoomViewport.classList.add('grabbing-cursor');
+        zoomViewport.classList.remove('grab-cursor');
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - startMouseX;
+      const deltaY = e.clientY - startMouseY;
+      dragDistance += Math.hypot(deltaX, deltaY);
+
+      panX = startPanX + deltaX;
+      panY = startPanY + deltaY;
+      clampPan();
+      applyTransform(false); // Instant response, zero lag
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        zoomViewport.classList.remove('grabbing-cursor');
+        if (currentZoom > 1.05) {
+          zoomViewport.classList.add('grab-cursor');
+        }
+      }
+    });
+
+    // MOUSE WHEEL ZOOM & PAN
     zoomViewport.addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.metaKey) {
+        // Ctrl + Wheel: Zoom in/out
         e.preventDefault();
         const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
         setZoom(currentZoom + delta);
+      } else if (currentZoom > 1.05) {
+        // Normal Wheel when zoomed: Pan Camera vertically/horizontally!
+        e.preventDefault();
+        if (e.shiftKey) {
+          panX -= e.deltaY * 0.9;
+        } else {
+          panY -= e.deltaY * 0.9;
+        }
+        clampPan();
+        applyTransform(false);
       }
     }, { passive: false });
 
-    // Drag to Pan when zoomed
-    let isDragging = false;
-    let startX, startY, scrollLeft, scrollTop;
+    // TOUCH DRAG & PINCH TO ZOOM ON MOBILE / TABLET
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartPanX = 0;
+    let touchStartPanY = 0;
+    let isTouchPanning = false;
+    let initialPinchDist = null;
+    let initialPinchZoom = 1.0;
 
-    zoomViewport.addEventListener('mousedown', (e) => {
-      if (currentZoom <= 1.05) return;
-      isDragging = true;
-      zoomViewport.classList.add('grabbing-cursor');
-      startX = e.pageX - zoomViewport.offsetLeft;
-      startY = e.pageY - zoomViewport.offsetTop;
-      scrollLeft = zoomViewport.scrollLeft;
-      scrollTop = zoomViewport.scrollTop;
-    });
-
-    zoomViewport.addEventListener('mouseleave', () => {
-      isDragging = false;
-      zoomViewport.classList.remove('grabbing-cursor');
-    });
-
-    zoomViewport.addEventListener('mouseup', () => {
-      isDragging = false;
-      zoomViewport.classList.remove('grabbing-cursor');
-    });
-
-    zoomViewport.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      const x = e.pageX - zoomViewport.offsetLeft;
-      const y = e.pageY - zoomViewport.offsetTop;
-      const walkX = (x - startX) * 1.5;
-      const walkY = (y - startY) * 1.5;
-      zoomViewport.scrollLeft = scrollLeft - walkX;
-      zoomViewport.scrollTop = scrollTop - walkY;
-    });
-
-    // Touch Pinch to Zoom on mobile
-    let initialTouchDist = null;
-    let initialZoom = 1.0;
     zoomViewport.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
-        initialTouchDist = Math.hypot(
-          e.touches[0].pageX - e.touches[1].pageX,
-          e.touches[0].pageY - e.touches[1].pageY
+      if (e.touches.length === 1 && currentZoom > 1.02) {
+        isTouchPanning = true;
+        dragDistance = 0;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartPanX = panX;
+        touchStartPanY = panY;
+      } else if (e.touches.length === 2) {
+        isTouchPanning = false;
+        initialPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
         );
-        initialZoom = currentZoom;
+        initialPinchZoom = currentZoom;
       }
-    });
+    }, { passive: false });
 
     zoomViewport.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 2 && initialTouchDist) {
+      if (isTouchPanning && e.touches.length === 1 && currentZoom > 1.02) {
+        e.preventDefault();
+        const deltaX = e.touches[0].clientX - touchStartX;
+        const deltaY = e.touches[0].clientY - touchStartY;
+        dragDistance += Math.hypot(deltaX, deltaY);
+        panX = touchStartPanX + deltaX;
+        panY = touchStartPanY + deltaY;
+        clampPan();
+        applyTransform(false);
+      } else if (e.touches.length === 2 && initialPinchDist) {
         e.preventDefault();
         const currentDist = Math.hypot(
-          e.touches[0].pageX - e.touches[1].pageX,
-          e.touches[0].pageY - e.touches[1].pageY
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
         );
-        const factor = currentDist / initialTouchDist;
-        setZoom(initialZoom * factor);
+        const scaleFactor = currentDist / initialPinchDist;
+        setZoom(initialPinchZoom * scaleFactor, false);
       }
     }, { passive: false });
 
     zoomViewport.addEventListener('touchend', (e) => {
-      if (e.touches.length < 2) {
-        initialTouchDist = null;
-      }
+      if (e.touches.length < 2) initialPinchDist = null;
+      if (e.touches.length === 0) isTouchPanning = false;
     });
 
     // Toggle 1 page / 2 pages
@@ -444,7 +522,7 @@
         const page = await pdfDoc.getPage(num);
         // High-DPI crisp scale based on zoom and devicePixelRatio
         const dpr = window.devicePixelRatio || 1;
-        const renderScale = 1.6 * currentZoom * dpr;
+        const renderScale = Math.min(3.5, 1.5 * currentZoom * dpr);
         const viewport = page.getViewport({ scale: renderScale });
         
         canvas.height = viewport.height;
@@ -507,9 +585,15 @@
       queueRenderPage();
     }
 
-    // Navigation button bindings
-    document.getElementById('prev-btn').addEventListener('click', onPrevPage);
-    document.getElementById('next-btn').addEventListener('click', onNextPage);
+    // Navigation button bindings (ignores drag if user was panning)
+    document.getElementById('prev-btn').addEventListener('click', (e) => {
+      if (dragDistance > 10) return;
+      onPrevPage();
+    });
+    document.getElementById('next-btn').addEventListener('click', (e) => {
+      if (dragDistance > 10) return;
+      onNextPage();
+    });
     document.getElementById('btn-nav-prev').addEventListener('click', onPrevPage);
     document.getElementById('btn-nav-next').addEventListener('click', onNextPage);
     
@@ -520,12 +604,25 @@
       queueRenderPage();
     });
 
+    // Keyboard Shortcuts (Arrow keys pan camera if zoomed in!)
     window.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && currentZoom > 1.05 && !e.shiftKey) {
+        e.preventDefault();
+        const step = 50;
+        if (e.key === 'ArrowUp') panY += step;
+        if (e.key === 'ArrowDown') panY -= step;
+        if (e.key === 'ArrowLeft') panX += step;
+        if (e.key === 'ArrowRight') panX -= step;
+        clampPan();
+        applyTransform(true);
+        return;
+      }
+
       if (e.key === 'ArrowRight' || e.key === 'PageDown') onNextPage();
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') onPrevPage();
       if (e.key === '+' || e.key === '=') setZoom(currentZoom + ZOOM_STEP);
       if (e.key === '-' || e.key === '_') setZoom(currentZoom - ZOOM_STEP);
-      if (e.key === '0') setZoom(1.0);
+      if (e.key === '0') setZoom(1.0, true);
       if (e.key === 'f' || e.key === 'F') toggleFullscreen();
     });
 
