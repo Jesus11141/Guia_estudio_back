@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
@@ -18,16 +18,23 @@
       --book-cover: #029dbb;
       --paper-cream: #fbf9f4;
     }
-    body {
+    
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
       font-family: 'Inter', sans-serif;
       user-select: none;
       background: radial-gradient(circle at 50% 30%, #132a3d 0%, #08141e 100%);
     }
+
     .book-font { font-family: 'EB Garamond', Georgia, serif; }
     
     .book-container {
       position: relative;
-      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.8), 0 10px 25px -5px rgba(0,0,0,0.6);
+      box-shadow: 0 20px 50px -10px rgba(0,0,0,0.8), 0 8px 20px -5px rgba(0,0,0,0.5);
       transition: box-shadow 0.3s ease;
       transform-origin: center center;
     }
@@ -50,20 +57,23 @@
     
     .page-sheet {
       transform-style: preserve-3d;
-      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
     }
-    .page-enter-left { animation: pageTurnLeft 0.35s ease-out forwards; }
-    .page-enter-right { animation: pageTurnRight 0.35s ease-out forwards; }
+    .page-enter-left { animation: pageTurnLeft 0.3s ease-out forwards; }
+    .page-enter-right { animation: pageTurnRight 0.3s ease-out forwards; }
     @keyframes pageTurnLeft { 0% { opacity: 0.7; transform: rotateY(10deg); } 100% { opacity: 1; transform: rotateY(0deg); } }
     @keyframes pageTurnRight { 0% { opacity: 0.7; transform: rotateY(-10deg); } 100% { opacity: 1; transform: rotateY(0deg); } }
     
     input[type="range"] { -webkit-appearance: none; height: 4px; border-radius: 9999px; background: #cbd5e1; outline: none; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #0284c7; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
     
+    /* Perfect Canvas Responsive Fitting */
     canvas { 
-      max-width: 100%; 
-      max-height: 100%; 
-      object-fit: contain; 
+      max-width: 100% !important; 
+      max-height: 100% !important; 
+      width: auto !important;
+      height: auto !important;
+      object-fit: contain !important; 
       mix-blend-mode: multiply;
       filter: contrast(1.02);
       display: block;
@@ -75,128 +85,128 @@
     .grabbing-cursor { cursor: grabbing !important; }
   </style>
 </head>
-<body class="min-h-screen text-slate-800 flex flex-col items-center justify-between p-2 sm:p-3 overflow-hidden select-none">
+<body class="h-full text-slate-800 flex flex-col items-center justify-between p-1.5 sm:p-2.5 overflow-hidden select-none">
 
   <!-- TOP BAR / TOOLBAR -->
-  <header class="w-full max-w-7xl flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-slate-900/80 backdrop-blur border border-cyan-800/40 rounded-xl text-cyan-200 shadow-lg z-50">
+  <header class="w-full max-w-7xl flex items-center justify-between gap-1.5 px-2.5 py-1.5 bg-slate-900/85 backdrop-blur border border-cyan-800/40 rounded-xl text-cyan-200 shadow-lg z-50 shrink-0">
     
     <!-- Title & Brand -->
-    <div class="flex items-center space-x-2.5">
-      <div class="w-8 h-8 rounded-lg bg-cyan-600/30 flex items-center justify-center border border-cyan-400/50 text-cyan-300 shadow">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="flex items-center space-x-2">
+      <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-600/30 flex items-center justify-center border border-cyan-400/50 text-cyan-300 shadow">
+        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
         </svg>
       </div>
       <div>
-        <h1 class="text-sm font-bold tracking-wide text-white leading-tight">Biblioteca Virtual</h1>
-        <p class="text-[11px] text-cyan-300/80 hidden sm:block">Lector interactivo con zoom y audio</p>
+        <h1 class="text-xs sm:text-sm font-bold tracking-wide text-white leading-tight">Biblioteca Virtual</h1>
+        <p class="text-[10px] text-cyan-300/80 hidden md:block">Lector interactivo con zoom inteligente</p>
       </div>
     </div>
 
     <!-- ZOOM CONTROLS -->
-    <div class="flex items-center space-x-1 sm:space-x-1.5 bg-slate-950/70 border border-cyan-700/50 rounded-lg p-1 shadow-inner">
+    <div class="flex items-center space-x-0.5 sm:space-x-1 bg-slate-950/70 border border-cyan-700/50 rounded-lg p-0.5 sm:p-1 shadow-inner">
       <!-- Zoom Out -->
-      <button id="btn-zoom-out" title="Alejar (Zoom -)" class="p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"></path></svg>
+      <button id="btn-zoom-out" title="Alejar (Zoom -)" class="p-1 sm:p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition">
+        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"></path></svg>
       </button>
 
       <!-- Zoom Level Badge (Click to reset) -->
-      <button id="btn-zoom-reset" title="Restablecer Zoom (100%)" class="px-2 py-0.5 text-xs font-mono font-bold text-cyan-200 hover:text-white bg-cyan-950/60 hover:bg-cyan-800/40 border border-cyan-800/40 rounded transition">
+      <button id="btn-zoom-reset" title="Restablecer Zoom (100%)" class="px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs font-mono font-bold text-cyan-200 hover:text-white bg-cyan-950/60 hover:bg-cyan-800/40 border border-cyan-800/40 rounded transition">
         <span id="zoom-text">100%</span>
       </button>
 
       <!-- Zoom In -->
-      <button id="btn-zoom-in" title="Acercar (Zoom +)" class="p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+      <button id="btn-zoom-in" title="Acercar (Zoom +)" class="p-1 sm:p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition">
+        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
       </button>
 
       <!-- Center Camera Button -->
-      <button id="btn-zoom-center" title="Centrar cámara" class="p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition text-xs font-medium flex items-center space-x-1">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v2m0 12v2m8-8h-2M6 12H4m12 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-        <span class="hidden sm:inline text-[10px]">Centrar</span>
+      <button id="btn-zoom-center" title="Centrar cámara" class="p-1 sm:p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition text-xs font-medium flex items-center space-x-1">
+        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v2m0 12v2m8-8h-2M6 12H4m12 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+        <span class="hidden md:inline text-[10px]">Centrar</span>
       </button>
 
       <!-- Fit to Width / Screen -->
-      <button id="btn-zoom-fit" title="Ajustar a pantalla" class="hidden sm:inline-flex p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition text-xs font-medium items-center space-x-1">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+      <button id="btn-zoom-fit" title="Ajustar a pantalla" class="hidden sm:inline-flex p-1 sm:p-1.5 hover:bg-cyan-800/50 active:bg-cyan-700 text-cyan-300 hover:text-white rounded-md transition text-xs font-medium items-center space-x-1">
+        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
         <span class="text-[10px]">Ajustar</span>
       </button>
     </div>
 
     <!-- VIEW MODES & FULLSCREEN -->
-    <div class="flex items-center space-x-1.5 text-xs">
+    <div class="flex items-center space-x-1 sm:space-x-1.5 text-xs">
       <!-- 1 Page / 2 Pages Toggle -->
-      <button id="btn-toggle-pages" title="Cambiar modo de vista" class="px-2.5 py-1.5 bg-slate-950/60 hover:bg-cyan-900/50 border border-cyan-700/40 text-cyan-200 hover:text-white rounded-lg transition flex items-center space-x-1.5 font-medium">
-        <span id="page-mode-icon">📖</span>
-        <span id="page-mode-label" class="hidden sm:inline">2 Páginas</span>
+      <button id="btn-toggle-pages" title="Cambiar modo de vista" class="px-2 sm:px-2.5 py-1 sm:py-1.5 bg-slate-950/60 hover:bg-cyan-900/50 border border-cyan-700/40 text-cyan-200 hover:text-white rounded-lg transition flex items-center space-x-1 font-medium text-xs">
+        <span id="page-mode-icon">📄</span>
+        <span id="page-mode-label" class="hidden sm:inline">1 Página</span>
       </button>
 
       <!-- Fullscreen -->
-      <button id="btn-fullscreen" title="Pantalla completa" class="p-1.5 bg-slate-950/60 hover:bg-cyan-900/50 border border-cyan-700/40 text-cyan-200 hover:text-white rounded-lg transition">
-        <svg id="fullscreen-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button id="btn-fullscreen" title="Pantalla completa" class="p-1 sm:p-1.5 bg-slate-950/60 hover:bg-cyan-900/50 border border-cyan-700/40 text-cyan-200 hover:text-white rounded-lg transition">
+        <svg id="fullscreen-icon" class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
         </svg>
       </button>
     </div>
   </header>
 
-  <!-- VIEWPORT SCROLLABLE CONTAINER FOR CAMERA PAN -->
-  <main id="zoom-viewport" class="flex-1 w-full max-w-7xl my-2 flex items-center justify-center overflow-hidden relative cursor-default">
+  <!-- VIEWPORT CONTAINER (Adapts dynamically to mobile and desktop) -->
+  <main id="zoom-viewport" class="flex-1 w-full max-w-7xl my-1 flex items-center justify-center overflow-hidden relative cursor-default min-h-0">
     
     <!-- Camera Transform Wrapper (Translate Pan + Scale Zoom) -->
-    <div id="book-transform-wrapper" class="origin-center flex justify-center items-center select-none will-change-transform">
+    <div id="book-transform-wrapper" class="origin-center flex justify-center items-center select-none will-change-transform w-full h-full min-h-0">
       
-      <!-- BOOK CONTAINER -->
-      <div id="main-book-container" class="book-container bg-[#00a6c0] p-[5px] sm:p-[7px] md:p-[9px] rounded-lg shadow-2xl relative flex max-w-[1050px]">
+      <!-- MAIN BOOK CONTAINER -->
+      <div id="main-book-container" class="book-container bg-[#00a6c0] p-[3px] sm:p-[6px] md:p-[8px] rounded-lg shadow-2xl relative flex h-full max-h-full min-h-0 transition-all duration-300">
         <div id="book-spine" class="absolute -left-1.5 top-0 bottom-0 w-3 rounded-l-md book-cover-spine pointer-events-none"></div>
 
-        <div class="w-full bg-[#fbf9f4] rounded-md overflow-hidden relative flex flex-col md:flex-row shadow-inner min-h-[500px] sm:min-h-[580px] lg:min-h-[640px]">
-          <div id="edge-left" class="hidden md:block absolute left-0 top-0 bottom-0 w-4 pages-edge-left z-20 pointer-events-none border-r border-stone-300/60"></div>
-          <div id="edge-right" class="hidden md:block absolute right-0 top-0 bottom-0 w-4 pages-edge-right z-20 pointer-events-none border-l border-stone-300/60"></div>
-          <div id="spine-center" class="hidden md:block absolute left-1/2 top-0 bottom-0 -ml-8 w-16 spine-gutter z-30 pointer-events-none"></div>
+        <div id="book-inner-pages" class="w-full h-full min-h-0 bg-[#fbf9f4] rounded-md overflow-hidden relative flex flex-row shadow-inner">
+          <div id="edge-left" class="hidden md:block absolute left-0 top-0 bottom-0 w-3 pages-edge-left z-20 pointer-events-none border-r border-stone-300/60"></div>
+          <div id="edge-right" class="hidden md:block absolute right-0 top-0 bottom-0 w-3 pages-edge-right z-20 pointer-events-none border-l border-stone-300/60"></div>
+          <div id="spine-center" class="hidden md:block absolute left-1/2 top-0 bottom-0 -ml-6 w-12 spine-gutter z-30 pointer-events-none"></div>
 
           <!-- LEFT PAGE -->
-          <section id="page-left" class="page-sheet w-full md:w-1/2 flex flex-col justify-between p-4 sm:p-6 md:pl-10 md:pr-8 relative bg-[#fbf9f4]">
-            <div class="flex items-start justify-between border-b border-stone-200/60 pb-2 h-[34px]">
-               <span class="text-xs text-stone-500 font-serif font-semibold" id="left-page-num"></span>
-               <span class="text-[11px] text-stone-400 font-serif italic hidden sm:inline">Página izquierda</span>
+          <section id="page-left" class="page-sheet h-full min-h-0 flex flex-col justify-between p-2 sm:p-3 md:pl-8 md:pr-6 relative bg-[#fbf9f4] overflow-hidden">
+            <div class="flex items-start justify-between border-b border-stone-200/60 pb-1 h-[24px] sm:h-[30px] shrink-0">
+               <span class="text-[11px] sm:text-xs text-stone-500 font-serif font-semibold" id="left-page-num"></span>
+               <span class="text-[10px] sm:text-[11px] text-stone-400 font-serif italic hidden sm:inline">Página izquierda</span>
             </div>
             
-            <div class="flex-1 flex items-center justify-center py-2 relative overflow-hidden min-h-[420px]">
+            <div class="flex-1 min-h-0 w-full h-full flex items-center justify-center py-1 relative overflow-hidden">
                <canvas id="pdf-canvas-left"></canvas>
                <div id="left-loading" class="absolute inset-0 flex items-center justify-center bg-[#fbf9f4] bg-opacity-80">
                   <span class="animate-pulse text-stone-400 text-xs tracking-widest uppercase">Cargando página...</span>
                </div>
             </div>
 
-            <div class="pt-2 border-t border-stone-200/60 flex items-center justify-between text-xs text-stone-400 h-[34px]">
-              <span class="font-serif text-[11px]">Guía de Estudio</span>
+            <div class="pt-1 border-t border-stone-200/60 flex items-center justify-between text-xs text-stone-400 h-[24px] sm:h-[30px] shrink-0">
+              <span class="font-serif text-[10px] sm:text-[11px]">Guía de Estudio</span>
             </div>
             
             <!-- Left Page Click for Prev -->
-            <button id="prev-btn" title="Página anterior (←)" class="absolute left-0 top-10 bottom-10 w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-w-resize transition z-30"></button>
+            <button id="prev-btn" title="Página anterior (←)" class="absolute left-0 top-6 bottom-6 w-12 sm:w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-w-resize transition z-30"></button>
           </section>
 
           <!-- RIGHT PAGE -->
-          <section id="page-right" class="page-sheet w-full md:w-1/2 flex flex-col justify-between p-4 sm:p-6 md:pr-10 md:pl-8 relative bg-[#fbf9f4] border-t md:border-t-0 md:border-l border-stone-200/80">
-            <div class="flex items-start justify-between border-b border-stone-200/60 pb-2 h-[34px]">
-               <span class="text-[11px] text-stone-400 font-serif italic hidden sm:inline">Página derecha</span>
-               <span class="text-xs text-stone-500 font-serif font-semibold" id="right-page-num"></span>
+          <section id="page-right" class="page-sheet h-full min-h-0 flex flex-col justify-between p-2 sm:p-3 md:pr-8 md:pl-6 relative bg-[#fbf9f4] border-l border-stone-200/80 overflow-hidden">
+            <div class="flex items-start justify-between border-b border-stone-200/60 pb-1 h-[24px] sm:h-[30px] shrink-0">
+               <span class="text-[10px] sm:text-[11px] text-stone-400 font-serif italic hidden sm:inline">Página derecha</span>
+               <span class="text-[11px] sm:text-xs text-stone-500 font-serif font-semibold" id="right-page-num"></span>
             </div>
             
-            <div class="flex-1 flex items-center justify-center py-2 relative overflow-hidden min-h-[420px]">
+            <div class="flex-1 min-h-0 w-full h-full flex items-center justify-center py-1 relative overflow-hidden">
                <canvas id="pdf-canvas-right"></canvas>
                <div id="right-loading" class="absolute inset-0 flex items-center justify-center bg-[#fbf9f4] bg-opacity-80">
                   <span class="animate-pulse text-stone-400 text-xs tracking-widest uppercase">Cargando página...</span>
                </div>
             </div>
 
-            <div class="pt-2 border-t border-stone-200/60 flex items-center justify-end text-xs text-stone-400 h-[34px]">
-              <span class="font-serif text-[11px]">Lectura Digital</span>
+            <div class="pt-1 border-t border-stone-200/60 flex items-center justify-end text-xs text-stone-400 h-[24px] sm:h-[30px] shrink-0">
+              <span class="font-serif text-[10px] sm:text-[11px]">Lectura Digital</span>
             </div>
 
             <!-- Right Page Click for Next -->
-            <button id="next-btn" title="Página siguiente (→)" class="absolute right-0 top-10 bottom-10 w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-e-resize transition z-30"></button>
+            <button id="next-btn" title="Página siguiente (→)" class="absolute right-0 top-6 bottom-6 w-12 sm:w-16 opacity-0 hover:opacity-10 bg-slate-500 cursor-e-resize transition z-30"></button>
           </section>
 
         </div>
@@ -204,34 +214,34 @@
     </div>
 
     <!-- Floating Pan Helper Indicator -->
-    <div id="pan-indicator" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/90 text-cyan-200 border border-cyan-700/50 text-[11px] font-medium px-3.5 py-1.5 rounded-full shadow-xl pointer-events-none transition-opacity duration-300 opacity-0 z-40 flex items-center space-x-1.5 backdrop-blur">
+    <div id="pan-indicator" class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/90 text-cyan-200 border border-cyan-700/50 text-[10px] sm:text-[11px] font-medium px-3 py-1 rounded-full shadow-xl pointer-events-none transition-opacity duration-300 opacity-0 z-40 flex items-center space-x-1.5 backdrop-blur">
       <span>🖐️</span>
-      <span>Haz clic y arrastra para mover la cámara o gira la rueda del ratón</span>
+      <span>Arrastra para mover o gira la rueda del ratón</span>
     </div>
   </main>
 
   <!-- BOTTOM BAR / NAVIGATION CONTROLS -->
-  <footer class="w-full max-w-3xl flex items-center justify-between gap-3 px-4 py-2 bg-slate-900/85 backdrop-blur border border-cyan-800/40 rounded-xl text-cyan-200 shadow-xl z-50">
+  <footer class="w-full max-w-3xl flex items-center justify-between gap-2 px-3 py-1.5 bg-slate-900/85 backdrop-blur border border-cyan-800/40 rounded-xl text-cyan-200 shadow-xl z-50 shrink-0">
     <!-- Prev Button -->
-    <button id="btn-nav-prev" title="Página anterior" class="flex items-center space-x-1 px-3 py-1.5 bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-700/50 rounded-lg text-cyan-200 hover:text-white transition active:scale-95 text-xs font-semibold">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    <button id="btn-nav-prev" title="Página anterior" class="flex items-center space-x-1 px-2.5 sm:px-3 py-1 bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-700/50 rounded-lg text-cyan-200 hover:text-white transition active:scale-95 text-xs font-semibold">
+      <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
       <span class="hidden sm:inline">Anterior</span>
     </button>
 
     <!-- Slider & Counter -->
     <div class="flex-1 flex flex-col items-center max-w-md mx-2">
       <input type="range" id="progress-slider" min="1" max="1" value="1" class="w-full">
-      <div class="flex items-center justify-between w-full mt-1 px-1">
-        <span class="text-[11px] text-cyan-400/80 font-mono">Pág. 1</span>
+      <div class="flex items-center justify-between w-full mt-0.5 px-1">
+        <span class="text-[10px] sm:text-[11px] text-cyan-400/80 font-mono">Pág. 1</span>
         <span id="page-counter-text" class="text-xs font-bold text-white tracking-wide">1 de 1</span>
-        <span id="page-total-label" class="text-[11px] text-cyan-400/80 font-mono">Fin</span>
+        <span id="page-total-label" class="text-[10px] sm:text-[11px] text-cyan-400/80 font-mono">Fin</span>
       </div>
     </div>
 
     <!-- Next Button -->
-    <button id="btn-nav-next" title="Página siguiente" class="flex items-center space-x-1 px-3 py-1.5 bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-700/50 rounded-lg text-cyan-200 hover:text-white transition active:scale-95 text-xs font-semibold">
+    <button id="btn-nav-next" title="Página siguiente" class="flex items-center space-x-1 px-2.5 sm:px-3 py-1 bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-700/50 rounded-lg text-cyan-200 hover:text-white transition active:scale-95 text-xs font-semibold">
       <span class="hidden sm:inline">Siguiente</span>
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+      <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
     </button>
   </footer>
 
@@ -244,7 +254,7 @@
     let totalPages = 0;
     let renderTasks = [];
 
-    // Zoom & 2D Pan Camera State
+    // Zoom & Camera State
     let currentZoom = 1.0;
     let panX = 0;
     let panY = 0;
@@ -253,6 +263,7 @@
     const ZOOM_STEP = 0.25;
 
     // View mode: true = 2 pages, false = 1 page
+    // On mobile (< 768px), default to 1 page for optimal readability!
     let isDoublePageMode = window.innerWidth >= 768;
 
     const canvasLeft = document.getElementById('pdf-canvas-left');
@@ -279,35 +290,36 @@
     // Apply Page Mode (1 page vs 2 pages)
     function applyPageMode() {
       if (isDoublePageMode) {
-        pageRightEl.classList.remove('hidden');
-        spineCenter.classList.remove('hidden');
-        edgeRight.classList.remove('hidden');
-        pageLeftEl.classList.remove('md:w-full');
-        pageLeftEl.classList.add('md:w-1/2');
-        mainBookContainer.classList.remove('max-w-[650px]');
-        mainBookContainer.classList.add('max-w-[1050px]');
+        pageRightEl.style.display = 'flex';
+        pageRightEl.style.width = '50%';
+        pageLeftEl.style.width = '50%';
+        if (spineCenter) spineCenter.style.display = '';
+        if (edgeRight) edgeRight.style.display = '';
+        mainBookContainer.style.maxWidth = 'min(1050px, 98vw)';
         pageModeIcon.textContent = '📖';
         pageModeLabel.textContent = '2 Páginas';
       } else {
-        pageRightEl.classList.add('hidden');
-        spineCenter.classList.add('hidden');
-        edgeRight.classList.add('hidden');
-        pageLeftEl.classList.remove('md:w-1/2');
-        pageLeftEl.classList.add('md:w-full');
-        mainBookContainer.classList.remove('max-w-[1050px]');
-        mainBookContainer.classList.add('max-w-[650px]');
+        pageRightEl.style.display = 'none';
+        pageLeftEl.style.width = '100%';
+        if (spineCenter) spineCenter.style.display = 'none';
+        if (edgeRight) edgeRight.style.display = 'none';
+        mainBookContainer.style.maxWidth = 'min(580px, 95vw)';
         pageModeIcon.textContent = '📄';
         pageModeLabel.textContent = '1 Página';
       }
+
+      // Reset camera and auto-fit to screen
+      panX = 0;
+      panY = 0;
+      applyTransform(true);
       queueRenderPage();
     }
 
     // CAMERA TRANSFORM & PAN CLAMPING
     function clampPan() {
-      const containerW = mainBookContainer.offsetWidth || 1000;
-      const containerH = mainBookContainer.offsetHeight || 600;
+      const containerW = mainBookContainer.offsetWidth || 500;
+      const containerH = mainBookContainer.offsetHeight || 500;
       
-      // Calculate how far camera can move based on zoom
       const maxPanX = Math.max(0, (containerW * currentZoom - window.innerWidth * 0.4) / 1.5) + 300;
       const maxPanY = Math.max(0, (containerH * currentZoom - window.innerHeight * 0.4) / 1.5) + 300;
 
@@ -323,7 +335,6 @@
       }
       bookTransformWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
       
-      // Update cursor and helper badge
       if (currentZoom > 1.05) {
         zoomViewport.classList.add('grab-cursor');
         panIndicator.classList.remove('opacity-0');
@@ -367,10 +378,7 @@
     });
 
     document.getElementById('btn-zoom-fit').addEventListener('click', () => {
-      const availableHeight = zoomViewport.clientHeight - 40;
-      const baseHeight = 620;
-      const fitZoom = Math.max(0.6, Math.min(1.8, availableHeight / baseHeight));
-      setZoom(fitZoom, true);
+      setZoom(1.0, true);
     });
 
     // MOUSE DRAG / PAN CAMERA
@@ -382,7 +390,6 @@
     let dragDistance = 0;
 
     zoomViewport.addEventListener('mousedown', (e) => {
-      // Left button (0) or Middle button (1)
       if (e.button !== 0 && e.button !== 1) return;
       if (currentZoom > 1.02 || e.button === 1) {
         isDragging = true;
@@ -406,7 +413,7 @@
       panX = startPanX + deltaX;
       panY = startPanY + deltaY;
       clampPan();
-      applyTransform(false); // Instant response, zero lag
+      applyTransform(false);
     });
 
     window.addEventListener('mouseup', () => {
@@ -422,12 +429,10 @@
     // MOUSE WHEEL ZOOM & PAN
     zoomViewport.addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.metaKey) {
-        // Ctrl + Wheel: Zoom in/out
         e.preventDefault();
         const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
         setZoom(currentZoom + delta);
       } else if (currentZoom > 1.05) {
-        // Normal Wheel when zoomed: Pan Camera vertically/horizontally!
         e.preventDefault();
         if (e.shiftKey) {
           panX -= e.deltaY * 0.9;
@@ -439,7 +444,7 @@
       }
     }, { passive: false });
 
-    // TOUCH DRAG & PINCH TO ZOOM ON MOBILE / TABLET
+    // TOUCH DRAG & PINCH TO ZOOM ON MOBILE
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartPanX = 0;
@@ -520,15 +525,20 @@
       
       try {
         const page = await pdfDoc.getPage(num);
+        
         // High-DPI crisp scale based on zoom and devicePixelRatio
         const dpr = window.devicePixelRatio || 1;
-        const renderScale = Math.min(3.5, 1.5 * currentZoom * dpr);
+        const renderScale = Math.min(3.5, 1.6 * Math.max(1.0, currentZoom) * dpr);
         const viewport = page.getViewport({ scale: renderScale });
         
         canvas.height = viewport.height;
         canvas.width = viewport.width;
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
+        
+        // Responsive aspect-ratio preservation
+        canvas.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
+        canvas.style.maxHeight = '100%';
+        canvas.style.maxWidth = '100%';
+        canvas.style.objectFit = 'contain';
         
         const renderContext = {
           canvasContext: ctx,
@@ -585,7 +595,7 @@
       queueRenderPage();
     }
 
-    // Navigation button bindings (ignores drag if user was panning)
+    // Navigation button bindings
     document.getElementById('prev-btn').addEventListener('click', (e) => {
       if (dragDistance > 10) return;
       onPrevPage();
@@ -604,7 +614,7 @@
       queueRenderPage();
     });
 
-    // Keyboard Shortcuts (Arrow keys pan camera if zoomed in!)
+    // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && currentZoom > 1.05 && !e.shiftKey) {
         e.preventDefault();
@@ -651,11 +661,11 @@
     }
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 
-    // Initial resize check for mobile responsiveness
+    // Dynamic resize handler: detects orientation and adjusts cleanly
     window.addEventListener('resize', () => {
       const shouldBeDouble = window.innerWidth >= 768;
-      if (shouldBeDouble !== isDoublePageMode) {
-        isDoublePageMode = shouldBeDouble;
+      if (shouldBeDouble !== isDoublePageMode && window.innerWidth < 768) {
+        isDoublePageMode = false;
         applyPageMode();
       }
     });
