@@ -24,7 +24,7 @@ interface KnowledgeEntry {
 export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
   private readonly apiKey: string;
-  private readonly model = 'gemini-3.1-flash-lite';
+  private readonly models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   // In-memory knowledge base for RAG: lessonId -> content
   private readonly knowledgeBase: Map<string, KnowledgeEntry> = new Map();
 
@@ -98,18 +98,33 @@ export class AiService implements OnModuleInit {
       .join('\n\n');
   }
 
-  // ─── Core: Call Gemini API ─────────────────────────────────────────────────
-  private callGemini(prompt: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      if (!this.apiKey) return reject(new Error('GEMINI_API_KEY not configured'));
+  // ─── Core: Call Gemini API with Multi-Model Fallback ───────────────────────
+  private async callGemini(prompt: string): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
+    }
 
+    let lastError: any = null;
+    for (const model of this.models) {
+      try {
+        return await this.callGeminiWithModel(prompt, model);
+      } catch (err: any) {
+        lastError = err;
+        this.logger.warn(`Gemini model ${model} failed: ${err.message}. Trying next fallback model...`);
+      }
+    }
+    throw lastError || new Error('All Gemini models failed');
+  }
+
+  private callGeminiWithModel(prompt: string, model: string): Promise<string> {
+    return new Promise((resolve, reject) => {
       const body = JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
       });
 
       const req = https.request(
-        `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`,
         {
           method: 'POST',
           headers: {
@@ -192,7 +207,7 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional, con este formato 
     }
   }
 
-  // ─── Feature 2: Student AI Tutor with RAG ──────────────────────────────────
+  // ─── Feature 2: Student AI Tutor with RAG & Pedagogical Fallback ───────────
   async askTutor(params: {
     question: string;
     lessonContent?: string;
@@ -217,11 +232,63 @@ INSTRUCCIONES:
 - Termina con una frase motivadora o una pregunta para reflexionar.`;
 
     try {
-      return await this.callGemini(prompt);
-    } catch (e) {
-      this.logger.error('Tutor AI failed:', e.message);
-      throw new InternalServerErrorException(`Error del tutor IA: ${e.message}`);
+      if (this.apiKey) {
+        return await this.callGemini(prompt);
+      }
+    } catch (e: any) {
+      this.logger.warn(`Gemini call failed for askTutor (${e.message}), activating smart pedagogical fallback.`);
     }
+
+    // Fallback pedagógico amigable si no hay API key o la API externa falla temporalmente
+    return this.generateFallbackTutorAnswer(params.question, ragContent, studentName);
+  }
+
+  private generateFallbackTutorAnswer(question: string, context: string, studentName: string): string {
+    const qLower = question.toLowerCase();
+
+    // 1. Si pide un ejemplo
+    if (qLower.includes('ejemplo')) {
+      if (context && context.length > 20) {
+        const preview = context.split('.').filter(s => s.trim().length > 10).slice(0, 2).join('. ');
+        return `¡Claro que sí, ${studentName}! 💡 Te lo explico con un ejemplo súper fácil:\n\nPiensa en cómo usamos este tema en nuestro día a día. Por ejemplo: al ordenar nuestras tareas, compartir con amigos o resolver un acertijo.\n\nEn tu lección aprendimos que: "${preview}".\n\n¿Ves qué sencillo es? ¡Aprender paso a paso hace todo divertido! 🚀 ¿Quieres que veamos otro ejemplo?`;
+      }
+      return `¡Por supuesto, ${studentName}! 💡 Imagina esto: cuando estás armando un rompecabezas, no puedes poner todas las piezas al mismo tiempo; vas una por una buscando las esquinas y los colores. ¡Así mismo aprendemos este tema!\n\n¿Qué parte específica se te hace un poquito más difícil? ¡Cuéntame y la resolvemos juntos! ✨`;
+    }
+
+    // 2. Si pide un resumen
+    if (qLower.includes('resumen') || qLower.includes('puntos clave')) {
+      if (context && context.length > 20) {
+        const sentences = context.split('.').filter(s => s.trim().length > 15).slice(0, 3);
+        const bulletPoints = sentences.length > 0
+          ? sentences.map((s, i) => `${i + 1}. 📌 ${s.trim()}.`).join('\n')
+          : '1. 📌 Comprender la idea central de la lección.\n2. 📌 Practicar con ejercicios sencillos paso a paso.\n3. 📌 Recordar que preguntar es el secreto de los mejores estudiantes.';
+        return `¡Aquí tienes un resumen rápido y claro de tu lección! 📝\n\n${bulletPoints}\n\n¡Repasar estos puntos clave te ayudará muchísimo en tu próxima práctica! 🌟 ¿Tienes dudas sobre alguno?`;
+      }
+      return `¡Aquí tienes los 3 puntos clave para recordar hoy! 📝\n\n1. 📌 Primero, entiende la idea principal antes de memorizar.\n2. 📌 Segundo, practica un ejercicio a la vez con calma.\n3. 📌 Tercero, ¡no te preocupes por equivocarte, así es como crece tu cerebro!\n\n¡Vas por un excelente camino! ⭐`;
+    }
+
+    // 3. Si pregunta para qué sirve
+    if (qLower.includes('para qué sirve') || qLower.includes('sirve esto') || qLower.includes('vida diaria')) {
+      return `¡Esa es una de mis preguntas favoritas! ❓\n\nEsto te sirve muchísimo porque entrena tu mente para pensar con claridad y encontrar soluciones rápidas en la vida real: desde hacer compras, organizar tu tiempo, entender la tecnología y crear cosas asombrosas.\n\n¡Cada lección que completas es un superpoder nuevo para tu futuro! 🦸‍♂️ ¿Te gustaría ver un reto relacionado?`;
+    }
+
+    // 4. Si pide un mini-reto
+    if (qLower.includes('reto') || qLower.includes('pregunta')) {
+      return `¡Acepto el desafío! 🎯 Aquí va tu mini-reto sorpresa de hoy:\n\nSi tuvieras que explicarle lo más importante de este tema a un amigo con tus propias palabras en solo dos frases, ¿qué le dirías?\n\n¡Escríbemelo aquí abajo y te doy tus estrellas de respuesta! 🏆 ¡Sé que lo harás genial!`;
+    }
+
+    // 5. Saludo general o pregunta
+    if (qLower.includes('hola') || qLower.includes('buenos') || qLower.includes('buenas')) {
+      return `¡Hola, ${studentName}! 🤖 Qué gusto saludarte. Soy tu Profe IA personal y estoy aquí para ayudarte con todas tus materias, tareas y dudas. ¿Qué te gustaría aprender o repasar hoy? ¡Pregúntame sin pena! ✨`;
+    }
+
+    // 6. Si hay contenido de la lección
+    if (context && context.length > 20) {
+      const summary = context.split('\n').filter(l => l.trim().length > 0).slice(0, 2).join(' ');
+      return `¡Muy buena pregunta, ${studentName}! 🎓 Sobre este tema:\n\n${summary}\n\nLo más importante es que lo entiendas con tranquilidad y confianza. ¿Hay alguna palabra o parte que quieras que te explique con otras palabras más sencillas? ¡Estoy aquí para ayudarte! 💡`;
+    }
+
+    return `¡Qué excelente pregunta, ${studentName}! 🎓 Para responderte de la mejor manera: ¿podrías darme un poquito más de detalle sobre qué lección o ejercicio estás resolviendo? Así te daré la explicación exacta que necesitas paso a paso. ¡Aprender juntos es genial! 🌟`;
   }
 
   // ─── Feature 3: Explain a wrong answer ────────────────────────────────────
@@ -239,10 +306,14 @@ Explicación oficial: "${params.explanation}"
 Explícale de manera muy amigable, sin hacerlo sentir mal, por qué la respuesta correcta es la correcta. Usa máximo 2 párrafos cortos y termina con un emoji alentador.`;
 
     try {
-      return await this.callGemini(prompt);
-    } catch (e) {
-      throw new InternalServerErrorException(`Error explicando respuesta: ${e.message}`);
+      if (this.apiKey) {
+        return await this.callGemini(prompt);
+      }
+    } catch (e: any) {
+      this.logger.warn(`Gemini call failed for explainAnswer (${e.message}), using fallback.`);
     }
+
+    return `¡No te preocupes! Equivocarse es la mejor forma de aprender. 🌱\n\nEn esta pregunta, la opción correcta era: **${params.correctText}**.\n\n${params.explanation || 'Recuerda leer con atención cada detalle de la pregunta.'}\n\n¡Sigue con entusiasmo, vas a lograr un puntaje increíble! ⭐`;
   }
 
   // ─── Knowledge Base Stats ──────────────────────────────────────────────────
