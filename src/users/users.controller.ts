@@ -35,12 +35,14 @@ export class UsersController {
   }
 
   @Put(':id')
-  async update(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; pass?: string; gradeId?: string; hasGames?: boolean }) {
+  async update(@Req() req: any, @Param('id') id: string, @Body() body: { name?: string; pass?: string; gradeId?: string; hasGames?: boolean; role?: Role; institutionId?: string | null }) {
     if (req.user.role === 'ADMIN') {
       const targetUser = await this.usersService.findById(id);
       if (!targetUser || targetUser.institutionId !== req.user.institutionId) {
          throw new ForbiddenException('No tienes permisos para editar este usuario.');
       }
+      delete body.role;
+      delete body.institutionId;
     }
     return this.usersService.update(id, body);
   }

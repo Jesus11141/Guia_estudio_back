@@ -89,11 +89,13 @@ export class UsersService {
     });
   }
 
-  async update(id: string, data: { name?: string; pass?: string; gradeId?: string; hasGames?: boolean }) {
+  async update(id: string, data: { name?: string; pass?: string; gradeId?: string; hasGames?: boolean; role?: Role; institutionId?: string | null }) {
     const updateData: any = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.gradeId !== undefined) updateData.gradeId = data.gradeId;
     if (data.hasGames !== undefined) updateData.hasGames = data.hasGames;
+    if (data.role !== undefined) updateData.role = data.role;
+    if (data.institutionId !== undefined) updateData.institutionId = data.institutionId;
     if (data.pass !== undefined && data.pass.length > 0) {
       updateData.password = await bcrypt.hash(data.pass, 10);
     }
