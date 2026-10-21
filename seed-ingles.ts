@@ -1205,6 +1205,26 @@ async function main() {
   let totalLessonsCreated = 0;
   let totalQuestionsCreated = 0;
 
+  // Limpiar cualquier lección antigua duplicada que no pertenezca al currículo oficial
+  const officialTitles = fullCurriculum.map((u) => u.title);
+  const obsoleteLessons = await prisma.lesson.findMany({
+    where: {
+      subjectId: subject.id,
+      title: { notIn: officialTitles },
+    },
+  });
+
+  if (obsoleteLessons.length > 0) {
+    const obsoleteIds = obsoleteLessons.map((l) => l.id);
+    await prisma.question.deleteMany({
+      where: { lessonId: { in: obsoleteIds } },
+    });
+    await prisma.lesson.deleteMany({
+      where: { id: { in: obsoleteIds } },
+    });
+    console.log(`🧹 Eliminadas ${obsoleteLessons.length} lecciones antiguas duplicadas.`);
+  }
+
   for (const unit of fullCurriculum) {
     // Buscar o crear la Lección
     let lesson = await prisma.lesson.findFirst({
