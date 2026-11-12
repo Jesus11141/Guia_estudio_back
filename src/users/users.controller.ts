@@ -43,6 +43,13 @@ export class UsersController {
       }
       delete body.role;
       delete body.institutionId;
+    } else if (req.user.role === 'STUDENT') {
+      if (req.user.id !== id) {
+        throw new ForbiddenException('Solo puedes actualizar tu propio perfil.');
+      }
+      delete body.role;
+      delete body.institutionId;
+      delete body.gradeId;
     }
     return this.usersService.update(id, body);
   }
