@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -783,7 +784,43 @@ En esta unidad se practica la lectura de recetas en inglés, vocabulario de coci
     }
   }
 
-  console.log('🎉 ¡Inyección completada exitosamente! (Institución, Grado 8vo D, Materia y 10 Unidades creadas sin usuarios)');
+  // 7. Crear o actualizar el usuario exclusivo para Dastan Hidalgo
+  const hashedPassword = await bcrypt.hash('123456', 10);
+  const targetEmail = 'dastanh11141@gmail.com'.toLowerCase().trim();
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email: targetEmail },
+  });
+
+  if (!existingUser) {
+    await prisma.user.create({
+      data: {
+        email: targetEmail,
+        password: hashedPassword,
+        name: 'Dastan Hidalgo',
+        role: Role.STUDENT,
+        institutionId: institution.id,
+        gradeId: grade.id,
+        hasGames: true,
+        stars: 50,
+      },
+    });
+    console.log('👤 Usuario creado con éxito: Dastan Hidalgo (dastanh11141@gmail.com) [Clave: 123456]');
+  } else {
+    await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        name: 'Dastan Hidalgo',
+        password: hashedPassword,
+        institutionId: institution.id,
+        gradeId: grade.id,
+        hasGames: true,
+      },
+    });
+    console.log('ℹ️ Usuario Dastan Hidalgo actualizado (dastanh11141@gmail.com) [Clave: 123456]');
+  }
+
+  console.log('🎉 ¡Inyección completada exitosamente! (Institución, 8vo D, Inglés y Usuario Dastan Hidalgo)');
 }
 
 main()
