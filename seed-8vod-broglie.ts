@@ -1,5 +1,4 @@
-import { PrismaClient, Role } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -784,66 +783,7 @@ En esta unidad se practica la lectura de recetas en inglés, vocabulario de coci
     }
   }
 
-  // 7. Crear usuarios alumnos de ejemplo para 8vo D
-  const defaultPassword = await bcrypt.hash('Estudiante123!', 10);
-
-  const sampleUsers = [
-    {
-      email: 'alisson.duarte@broglie.edu.ec',
-      name: 'Alisson Duarte',
-      role: Role.STUDENT,
-      avatar: 'girl_student',
-      stars: 50,
-      hasGames: true,
-      institutionId: institution.id,
-      gradeId: grade.id,
-    },
-    {
-      email: 'roger.toaquiza@broglie.edu.ec',
-      name: 'Roger Toaquiza',
-      role: Role.STUDENT,
-      avatar: 'boy_student',
-      stars: 45,
-      hasGames: true,
-      institutionId: institution.id,
-      gradeId: grade.id,
-    },
-    {
-      email: 'admin.broglie@broglie.edu.ec',
-      name: 'Director Louis Victor de Broglie',
-      role: Role.ADMIN,
-      avatar: 'teacher',
-      stars: 0,
-      hasGames: true,
-      institutionId: institution.id,
-      gradeId: null,
-    },
-  ];
-
-  for (const u of sampleUsers) {
-    const exists = await prisma.user.findUnique({ where: { email: u.email } });
-    if (!exists) {
-      await prisma.user.create({
-        data: {
-          ...u,
-          password: defaultPassword,
-        },
-      });
-      console.log(`👤 Usuario creado: ${u.name} (${u.email}) [Contraseña: Estudiante123!]`);
-    } else {
-      await prisma.user.update({
-        where: { email: u.email },
-        data: {
-          institutionId: u.institutionId,
-          gradeId: u.gradeId,
-          hasGames: u.hasGames,
-        },
-      });
-      console.log(`ℹ️ Usuario actualizado: ${u.email}`);
-    }
-  }
-
-  console.log('🎉 ¡Inyección completada exitosamente!');
+  console.log('🎉 ¡Inyección completada exitosamente! (Institución, Grado 8vo D, Materia y 10 Unidades creadas sin usuarios)');
 }
 
 main()
